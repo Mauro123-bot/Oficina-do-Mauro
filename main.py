@@ -619,177 +619,252 @@ class CadastroClientes:
 # Módulo 6 - Árvore de Diagnóstico (árvore N-ária)
 # ============================================================
 
+# ============================================================
+# Módulo 7 - Controle de Estoque de Peças
+# Combinação: Lista de produtos, cada um contendo uma Fila de lotes
+# ============================================================
+
+class Lote:
+    # Guarda os dados de uma compra de um produto.
+
+    def __init__(self, quantidade, fornecedor, preco_compra, preco_venda, data_compra, validade):
+        self.quantidade = quantidade
+        self.fornecedor = fornecedor
+        self.preco_compra = preco_compra
+        self.preco_venda = preco_venda
+        self.data_compra = datetime.strptime(data_compra, "%d/%m/%Y")
+        # Converte o texto "dd/mm/aaaa" em data de verdade.
+
+        if validade is None:
+            self.validade = None
+            # Produtos como parafusos não vencem.
+        else:
+            self.validade = datetime.strptime(validade, "%d/%m/%Y")
+
+    def esta_vencido(self, hoje):
+        # Devolve True se o lote tem validade e ela já passou.
+
+        if self.validade is None:
+            return False
+        return self.validade < hoje
+
+    def __str__(self):
+        # Define como o lote aparece quando usamos print.
+
+        if self.validade is None:
+            texto_validade = "sem validade"
+        else:
+            texto_validade = "validade " + self.validade.strftime("%d/%m/%Y")
+
+        return (f"{self.quantidade} un. | compra {self.data_compra.strftime('%d/%m/%Y')} | "
+                f"{self.fornecedor} | custo R$ {self.preco_compra:.2f} | "
+                f"venda R$ {self.preco_venda:.2f} | {texto_validade}")
+
+
+class Produto:
+    # Guarda os dados fixos de um produto e a sua fila de lotes.
+
+    def __init__(self, codigo, nome, minimo, descarte):
+        self.codigo = codigo
+        self.nome = nome
+        self.minimo = minimo
+        self.descarte = descarte
+        # 'descarte' é o destino ambiental correto do produto vencido.
+
+        self.lotes = Fila()
+        # Cada produto tem a sua própria fila de lotes.
+        # O lote comprado primeiro é o primeiro a sair.
+
+    def total(self):
+        # Percorre a fila somando a quantidade de todos os lotes.
+
+        soma = 0
+        atual = self.lotes.inicio
+        while atual is not None:
+            soma = soma + atual.dado.quantidade
+            atual = atual.proximo
+        return soma
+
+
+class Perda:
+    # Registra um lote descartado por vencimento.
+
+    def __init__(self, produto, lote):
+        self.produto = produto
+        self.lote = lote
+
 
 class Estoque:
-    # Controla os produtos da oficina.
-    # Cada produto guarda seus lotes numa fila feita com a classe No.
-    # O lote que entrou primeiro é o primeiro a sair.
+    # Regras do estoque da oficina.
+    # Usa a ListaEncadeada para os produtos e a Fila de cada produto para os lotes.
 
     def __init__(self):
-        self.produtos = {}
-        # Dicionário de produtos. A chave é o código (ex: "OL01")
-        # e o valor é outro dicionário com os dados do produto.
+        self.produtos = ListaEncadeada()
+        # Lista com todos os produtos cadastrados.
 
-        self.perdas_inicio = None
-        self.perdas_fim = None
-        # Lista encadeada com os lotes descartados por vencimento.
+        self.perdas = ListaEncadeada()
+        # Lista com os lotes descartados por vencimento.
+
+    def buscar_produto(self, codigo):
+        # Percorre a lista de produtos até achar o código.
+        # Devolve o produto, ou None se ele não existir.
+
+        atual = self.produtos.cabeca
+        while atual is not None:
+            if atual.dado.codigo == codigo:
+                return atual.dado
+            atual = atual.proximo
+        return None
 
     def cadastrar_produto(self, codigo, nome, minimo, descarte):
-        if codigo in self.produtos:
+        if self.buscar_produto(codigo) is not None:
             print(f"Aviso: o código {codigo} já está cadastrado. Produto não incluído.")
             return
 
-        self.produtos[codigo] = {
-            "nome": nome,
-            "minimo": minimo,
-            "descarte": descarte,
-            "inicio": None,   # primeiro lote da fila
-            "fim": None,      # último lote da fila
-        }
+        self.produtos.adicionar(Produto(codigo, nome, minimo, descarte))
         print(f"Produto {codigo} - {nome} cadastrado.")
 
-    def entrada_lote(self, codigo, quantidade, validade):
-        if codigo not in self.produtos:
+    def entrada_lote(self, codigo, quantidade, fornecedor, preco_compra, preco_venda,
+                     data_compra, validade=None):
+        # 'validade=None' permite cadastrar produtos sem validade, como parafusos.
+
+        produto = self.buscar_produto(codigo)
+        if produto is None:
             print(f"Aviso: produto {codigo} não cadastrado.")
             return
 
-        produto = self.produtos[codigo]
-        lote = {
-            "quantidade": quantidade,
-            "validade": datetime.strptime(validade, "%d/%m/%Y"),
-            # Converte o texto "dd/mm/aaaa" em data de verdade,
-            # para a comparação de datas funcionar corretamente.
-        }
+        lote = Lote(quantidade, fornecedor, preco_compra, preco_venda, data_compra, validade)
+        produto.lotes.enfileirar(lote)
+        # O novo lote entra no fim da fila do produto.
 
-        novo = No(lote)
-        if produto["fim"] is None:
-            # Fila vazia: o novo lote é o primeiro e o último ao mesmo tempo.
-            produto["inicio"] = novo
-            produto["fim"] = novo
-        else:
-            # Fila com lotes: o novo lote entra no final.
-            produto["fim"].proximo = novo
-            produto["fim"] = novo
-
-        print(f"Lote de {quantidade} un. de {codigo} (validade {validade}) registrado.")
-
-    def total(self, codigo):
-        # Percorre a fila somando as quantidades de todos os lotes.
-        soma = 0
-        atual = self.produtos[codigo]["inicio"]
-        while atual is not None:
-            soma += atual.dado["quantidade"]
-            atual = atual.proximo
-        return soma
+        print(f"Lote de {quantidade} un. de {codigo} registrado.")
 
     def descartar_vencidos(self, data_hoje):
         hoje = datetime.strptime(data_hoje, "%d/%m/%Y")
 
-        for codigo, produto in self.produtos.items():
-            anterior = None
-            atual = produto["inicio"]
+        atual = self.produtos.cabeca
+        while atual is not None:
+            produto = atual.dado
+            quantidade_de_lotes = produto.lotes.tamanho
 
-            # Percorre a fila inteira, não só o começo,
-            # para achar lotes vencidos em qualquer posição.
-            while atual is not None:
-                seguinte = atual.proximo
+            for i in range(quantidade_de_lotes):
+                # Cada lote sai da fila uma vez.
+                # Se estiver vencido, vira perda. Se não, volta para o fim da fila.
+                # Como todos dão uma volta completa, a ordem original se mantém.
 
-                if atual.dado["validade"] < hoje:
-                    # Tira o nó da fila, ligando o anterior ao seguinte.
-                    if anterior is None:
-                        produto["inicio"] = seguinte
-                    else:
-                        anterior.proximo = seguinte
+                lote = produto.lotes.desenfileirar()
 
-                    if atual is produto["fim"]:
-                        produto["fim"] = anterior
-
-                    self._registrar_perda(codigo, produto, atual.dado)
+                if lote.esta_vencido(hoje):
+                    self.perdas.adicionar(Perda(produto, lote))
+                    print(f"Descartado: {lote.quantidade} un. de {produto.codigo}, "
+                          f"vencido em {lote.validade.strftime('%d/%m/%Y')}. "
+                          f"Destino: {produto.descarte}.")
                 else:
-                    anterior = atual
+                    produto.lotes.enfileirar(lote)
 
-                atual = seguinte
+            atual = atual.proximo
 
-    def _registrar_perda(self, codigo, produto, lote):
-        perda = {
-            "codigo": codigo,
-            "nome": produto["nome"],
-            "quantidade": lote["quantidade"],
-            "validade": lote["validade"],
-            "descarte": produto["descarte"],
-        }
+    def _consumir(self, produto, quantidade):
+        # Tira a quantidade pedida dos lotes mais antigos.
+        # Devolve o valor de venda das unidades retiradas.
 
-        novo = No(perda)
-        if self.perdas_fim is None:
-            self.perdas_inicio = novo
-            self.perdas_fim = novo
-        else:
-            self.perdas_fim.proximo = novo
-            self.perdas_fim = novo
+        falta = quantidade
+        valor = 0
 
-        print(f"Descartado: {lote['quantidade']} un. de {codigo}, "
-              f"vencido em {lote['validade'].strftime('%d/%m/%Y')}. "
-              f"Destino: {produto['descarte']}.")
+        while falta > 0:
+            lote = produto.lotes.espiar()
+            # Olha o lote mais antigo, sem tirá-lo da fila.
+
+            if lote.quantidade <= falta:
+                # O lote acaba inteiro e sai da fila.
+                falta = falta - lote.quantidade
+                valor = valor + lote.quantidade * lote.preco_venda
+                produto.lotes.desenfileirar()
+            else:
+                # O lote cobre o que falta e continua na fila.
+                lote.quantidade = lote.quantidade - falta
+                valor = valor + falta * lote.preco_venda
+                falta = 0
+
+        return valor
+
+    def verificar_minimo(self, produto):
+        if produto.total() < produto.minimo:
+            print(f"ALERTA: {produto.codigo} está com {produto.total()} un., "
+                  f"abaixo do mínimo de {produto.minimo}. Repor estoque.")
 
     def retirar(self, codigo, quantidade):
-        if codigo not in self.produtos:
+        # Usado na baixa de peças da OS. Devolve o valor de venda das peças.
+
+        produto = self.buscar_produto(codigo)
+        if produto is None:
+            print(f"Aviso: produto {codigo} não cadastrado.")
+            return 0
+
+        if quantidade > produto.total():
+            print(f"Aviso: só há {produto.total()} un. de {codigo}. "
+                  f"Retirada de {quantidade} não realizada.")
+            return 0
+
+        valor = self._consumir(produto, quantidade)
+        print(f"Retiradas {quantidade} un. de {codigo}. Valor de venda: R$ {valor:.2f}")
+        self.verificar_minimo(produto)
+        return valor
+
+    def ajustar_quantidade(self, codigo, quantidade_contada):
+        # Ajuste de inventário: corrige o estoque pela contagem física.
+
+        produto = self.buscar_produto(codigo)
+        if produto is None:
             print(f"Aviso: produto {codigo} não cadastrado.")
             return
 
-        produto = self.produtos[codigo]
-        disponivel = self.total(codigo)
+        diferenca = quantidade_contada - produto.total()
 
-        if quantidade > disponivel:
-            print(f"Aviso: só há {disponivel} un. de {codigo}. "
-                  f"Retirada de {quantidade} não realizada.")
-            return
+        if diferenca == 0:
+            print(f"Ajuste de {codigo}: contagem confere com o sistema.")
+        elif diferenca < 0:
+            # Faltam itens: tira a diferença dos lotes mais antigos.
+            self._consumir(produto, -diferenca)
+            print(f"Ajuste de {codigo}: {-diferenca} un. a menos. Total agora: {produto.total()}.")
+        else:
+            # Sobram itens: soma a diferença no lote mais recente.
+            if produto.lotes.esta_vazia():
+                print(f"Aviso: {codigo} não tem lotes. Use entrada_lote para registrar a compra.")
+                return
+            produto.lotes.fim.dado.quantidade = produto.lotes.fim.dado.quantidade + diferenca
+            print(f"Ajuste de {codigo}: {diferenca} un. a mais. Total agora: {produto.total()}.")
 
-        falta = quantidade
-        while falta > 0:
-            lote = produto["inicio"].dado
-
-            if lote["quantidade"] <= falta:
-                # O lote da frente acaba inteiro e sai da fila.
-                falta -= lote["quantidade"]
-                produto["inicio"] = produto["inicio"].proximo
-                if produto["inicio"] is None:
-                    produto["fim"] = None
-            else:
-                # O lote da frente cobre o que falta e continua na fila.
-                lote["quantidade"] -= falta
-                falta = 0
-
-        print(f"Retiradas {quantidade} un. de {codigo}.")
-
-        restante = self.total(codigo)
-        if restante <= produto["minimo"]:
-            print(f"ALERTA: {codigo} está com {restante} un. "
-                  f"(mínimo {produto['minimo']}). Repor estoque.")
+        self.verificar_minimo(produto)
 
     def exibir(self):
-        for codigo, produto in self.produtos.items():
-            print(f"{codigo} - {produto['nome']}: {self.total(codigo)} un. "
-                  f"(mínimo {produto['minimo']})")
+        atual = self.produtos.cabeca
+        while atual is not None:
+            produto = atual.dado
+            print(f"{produto.codigo} - {produto.nome}: {produto.total()} un. "
+                  f"(mínimo {produto.minimo})")
 
-            atual = produto["inicio"]
-            while atual is not None:
-                lote = atual.dado
-                print(f"    lote: {lote['quantidade']} un., "
-                      f"validade {lote['validade'].strftime('%d/%m/%Y')}")
-                atual = atual.proximo
+            no_lote = produto.lotes.inicio
+            while no_lote is not None:
+                print("    lote:", no_lote.dado)
+                no_lote = no_lote.proximo
+
+            atual = atual.proximo
 
     def exibir_perdas(self):
-        if self.perdas_inicio is None:
+        if self.perdas.esta_vazia():
             print("Nenhuma perda registrada.")
             return
 
-        atual = self.perdas_inicio
+        atual = self.perdas.cabeca
         while atual is not None:
-            p = atual.dado
-            print(f"{p['codigo']} - {p['nome']}: {p['quantidade']} un., "
-                  f"vencido em {p['validade'].strftime('%d/%m/%Y')}. "
-                  f"Destino: {p['descarte']}")
+            perda = atual.dado
+            print(f"{perda.produto.codigo} - {perda.produto.nome}: "
+                  f"{perda.lote.quantidade} un., "
+                  f"vencido em {perda.lote.validade.strftime('%d/%m/%Y')}. "
+                  f"Destino: {perda.produto.descarte}")
             atual = atual.proximo
+
 
 class NoArvore:
     # Cada nó da árvore guarda um sintoma, uma causa ou um diagnóstico.
@@ -806,7 +881,6 @@ class NoArvore:
         self.proximo_irmao = None
         # Aponta para o próximo irmão, que é outro filho do mesmo pai.
         # Assim, os filhos de um nó formam uma lista encadeada, sem usar list do Python.
-
 
 class ArvoreDiagnostico:
     # Árvore N-ária: cada nó pode ter quantos filhos precisar.
@@ -1080,28 +1154,36 @@ if __name__ == "__main__":
 
     estoque.cadastrar_produto("OL01", "Óleo 5W30 (litro)", 5, "rerrefino, CONAMA 362/2005")
     estoque.cadastrar_produto("PF01", "Pastilha de freio (jogo)", 2, "coleta de resíduo metálico")
+    estoque.cadastrar_produto("PA01", "Parafuso de roda", 10, "reciclagem de metal")
     estoque.cadastrar_produto("OL01", "Óleo repetido", 1, "-")
-    # O terceiro deve dar aviso, porque o código OL01 já existe.
+    # O último deve dar aviso, porque o código OL01 já existe.
 
-    estoque.entrada_lote("OL01", 4, "10/09/2026")
-    estoque.entrada_lote("OL01", 10, "15/03/2027")
-    estoque.entrada_lote("PF01", 6, "31/12/2030")
-    # O primeiro lote de óleo já está vencido em relação à data de teste.
+    estoque.entrada_lote("OL01", 4, "Lubrax", 30.00, 45.00, "10/03/2026", "10/09/2026")
+    estoque.entrada_lote("OL01", 10, "Mobil", 32.00, 48.00, "15/09/2026", "15/03/2027")
+    estoque.entrada_lote("PF01", 6, "Bosch", 80.00, 130.00, "01/10/2026", "31/12/2030")
+    estoque.entrada_lote("PA01", 50, "Ciser", 1.50, 3.00, "05/10/2026")
+    # O primeiro lote de óleo já está vencido. O parafuso não tem validade.
 
     print("\nEstoque inicial:")
     estoque.exibir()
 
     print()
     estoque.descartar_vencidos("28/10/2026")
-    # O lote de óleo vencido sai da fila e vira perda.
 
     print()
     estoque.retirar("OL01", 4)
-    estoque.retirar("PF01", 4)
-    # A retirada de pastilhas deixa o estoque no mínimo e dispara o alerta.
+    estoque.retirar("PF01", 5)
+    # Sobra 1 pastilha, abaixo do mínimo de 2, e dispara o alerta.
 
     estoque.retirar("PF01", 10)
     # Deve avisar que não há pastilhas suficientes.
+
+    print()
+    estoque.ajustar_quantidade("PA01", 47)
+    # Na contagem física faltaram 3 parafusos.
+
+    estoque.ajustar_quantidade("OL01", 7)
+    # Na contagem física sobrou 1 litro de óleo.
 
     print("\nEstoque final:")
     estoque.exibir()
