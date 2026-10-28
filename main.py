@@ -1100,6 +1100,219 @@ class Estoque:
 
     print(f"Testando Pilha - Está vazia? {pilha.esta_vazia()}")
 
+# ============================================================
+# Módulo 9 - Ordem de Serviço
+# Combinação: cada OS tem uma Lista de peças, uma Lista de serviços
+# e uma Pilha de desmontagem
+# ============================================================
+
+class ItemPeca:
+    # Uma peça usada na OS. O valor só é calculado na baixa do estoque.
+
+    def __init__(self, codigo, descricao, quantidade):
+        self.codigo = codigo
+        self.descricao = descricao
+        self.quantidade = quantidade
+
+    def __str__(self):
+        return f"{self.codigo} - {self.descricao} | {self.quantidade} un."
+
+
+class Servico:
+    # Um serviço de mão de obra, como troca de pastilhas ou alinhamento.
+
+    def __init__(self, descricao, valor):
+        self.descricao = descricao
+        self.valor = valor
+
+    def __str__(self):
+        return f"{self.descricao} | R$ {self.valor:.2f}"
+
+
+class OrdemServico:
+    # Guarda todos os dados de um atendimento, da abertura ao fechamento.
+
+    def __init__(self, numero, placa, cliente, mecanico):
+        self.numero = numero
+        self.placa = placa
+        self.cliente = cliente
+        self.mecanico = mecanico
+        self.abertura = datetime.now()
+        # Data e hora em que a OS foi aberta.
+
+        self.pecas = ListaEncadeada()
+        self.servicos = ListaEncadeada()
+        # Listas, porque peças e serviços entram e saem em qualquer ordem
+        # conforme o diagnóstico avança ou o cliente não autoriza.
+
+        self.desmontagem = Pilha()
+        # Pilha, porque a remontagem acontece na ordem inversa da desmontagem.
+
+        self.status = "Aberta"
+
+    def esta_aberta(self):
+        if self.status != "Aberta":
+            print(f"[AVISO] OS {self.numero} já está fechada. Não pode ser alterada.")
+            return False
+        return True
+
+    def buscar_peca(self, codigo):
+        atual = self.pecas.cabeca
+        while atual is not None:
+            if atual.dado.codigo == codigo:
+                return atual.dado
+            atual = atual.proximo
+        return None
+
+    def buscar_servico(self, descricao):
+        atual = self.servicos.cabeca
+        while atual is not None:
+            if atual.dado.descricao == descricao:
+                return atual.dado
+            atual = atual.proximo
+        return None
+
+    def adicionar_peca(self, codigo, descricao, quantidade):
+        if not self.esta_aberta():
+            return
+        self.pecas.adicionar(ItemPeca(codigo, descricao, quantidade))
+        print(f"[OS {self.numero}] Peça incluída: {codigo} - {descricao} ({quantidade} un.)")
+
+    def adicionar_pecas_com_defeito(self, arvore):
+        # Junta a árvore de diagnóstico com a OS.
+        # Cada peça marcada com defeito entra na OS com 1 unidade.
+
+        if not self.esta_aberta():
+            return
+
+        defeitos = arvore.pecas_com_defeito()
+        atual = defeitos.cabeca
+        while atual is not None:
+            no = atual.dado
+            self.adicionar_peca(no.codigo, no.texto, 1)
+            atual = atual.proximo
+
+    def remover_peca(self, codigo):
+        if not self.esta_aberta():
+            return
+        peca = self.buscar_peca(codigo)
+        if peca is None:
+            print(f"[AVISO] Peça {codigo} não está na OS {self.numero}.")
+            return
+        self.pecas.remover(peca)
+        print(f"[OS {self.numero}] Peça removida: {codigo}")
+
+    def adicionar_servico(self, descricao, valor):
+        if not self.esta_aberta():
+            return
+        self.servicos.adicionar(Servico(descricao, valor))
+        print(f"[OS {self.numero}] Serviço incluído: {descricao} (R$ {valor:.2f})")
+
+    def remover_servico(self, descricao):
+        if not self.esta_aberta():
+            return
+        servico = self.buscar_servico(descricao)
+        if servico is None:
+            print(f"[AVISO] Serviço '{descricao}' não está na OS {self.numero}.")
+            return
+        self.servicos.remover(servico)
+        print(f"[OS {self.numero}] Serviço removido: {descricao}")
+
+    def desmontar(self, componente):
+        self.desmontagem.empilhar(componente)
+        print(f"[OS {self.numero}] Desmontado: {componente}")
+
+    def remontar(self):
+        componente = self.desmontagem.desempilhar()
+        if componente is None:
+            print(f"[OS {self.numero}] Nada a remontar.")
+            return
+        print(f"[OS {self.numero}] Remontado: {componente}")
+
+    def total_servicos(self):
+        soma = 0
+        atual = self.servicos.cabeca
+        while atual is not None:
+            soma = soma + atual.dado.valor
+            atual = atual.proximo
+        return soma
+
+    def fechar(self):
+        # A OS só fecha se a pilha de desmontagem estiver vazia.
+
+        if not self.esta_aberta():
+            return False
+
+        if not self.desmontagem.esta_vazia():
+            print(f"[AVISO] OS {self.numero} não pode ser fechada. "
+                  f"Faltam {self.desmontagem.tamanho} componente(s) para remontar. "
+                  f"Próximo a remontar: {self.desmontagem.espiar()}")
+            return False
+
+        self.status = "Fechada"
+        print(f"[OS {self.numero}] Fechada. Remontagem concluída.")
+        return True
+
+    def exibir(self):
+        print(f"OS {self.numero} | {self.placa} | {self.cliente} | mecânico {self.mecanico} | "
+              f"aberta em {self.abertura.strftime('%d/%m/%Y %H:%M')} | {self.status}")
+
+        print("  Peças:")
+        if self.pecas.esta_vazia():
+            print("    nenhuma")
+        atual = self.pecas.cabeca
+        while atual is not None:
+            print(f"    {atual.dado}")
+            atual = atual.proximo
+
+        print("  Serviços:")
+        if self.servicos.esta_vazia():
+            print("    nenhum")
+        atual = self.servicos.cabeca
+        while atual is not None:
+            print(f"    {atual.dado}")
+            atual = atual.proximo
+
+        print(f"  Total de mão de obra: R$ {self.total_servicos():.2f}")
+
+
+class ControleOS:
+    # Gerencia as ordens de serviço abertas e fechadas da oficina.
+
+    def __init__(self):
+        self.abertas = ListaEncadeada()
+        self.fechadas = ListaEncadeada()
+        self.proximo_numero = 1
+
+    def abrir_os(self, placa, cliente, mecanico):
+        ordem = OrdemServico(self.proximo_numero, placa, cliente, mecanico)
+        self.proximo_numero = self.proximo_numero + 1
+        self.abertas.adicionar(ordem)
+        print(f"[OS {ordem.numero}] Aberta para {placa} - {cliente}, mecânico {mecanico}.")
+        return ordem
+
+    def buscar(self, numero):
+        atual = self.abertas.cabeca
+        while atual is not None:
+            if atual.dado.numero == numero:
+                return atual.dado
+            atual = atual.proximo
+        return None
+
+    def fechar_os(self, numero):
+        ordem = self.buscar(numero)
+        if ordem is None:
+            print(f"[AVISO] OS {numero} não encontrada entre as abertas.")
+            return None
+
+        if not ordem.fechar():
+            return None
+
+        self.abertas.remover(ordem)
+        self.fechadas.adicionar(ordem)
+        # A OS sai da lista de abertas e vai para a de fechadas.
+
+        return ordem
 
 # ============================================================
 # Área de testes
@@ -1333,3 +1546,47 @@ if __name__ == "__main__":
         print(f"    Recolocar: {pilha.desempilhar()}")
 
     print(f"Testando Pilha - Está vazia? {pilha.esta_vazia()}")
+
+        # ---------- Teste do Módulo 9 ----------
+    print("\n===== MÓDULO 9: ORDEM DE SERVIÇO =====")
+
+    controle_os = ControleOS()
+    ordem = controle_os.abrir_os("XYZ9K87", "Ana Souza", "Mauro")
+
+    ordem.adicionar_pecas_com_defeito(arvore)
+    # Usa a árvore do Módulo 6, onde Vela e Pastilha foram marcadas com defeito.
+
+    ordem.adicionar_peca("OL01", "Óleo 5W30 (litro)", 4)
+    ordem.adicionar_servico("Troca de pastilhas", 120.00)
+    ordem.adicionar_servico("Troca de velas", 80.00)
+    ordem.adicionar_servico("Troca de óleo", 60.00)
+
+    print()
+    ordem.remover_peca("VL01")
+    ordem.remover_servico("Troca de velas")
+    # A cliente não autorizou a troca das velas.
+
+    ordem.remover_servico("Alinhamento")
+    # Deve avisar, porque esse serviço não está na OS.
+
+    print()
+    ordem.exibir()
+
+    print()
+    ordem.desmontar("Roda dianteira")
+    ordem.desmontar("Pinça de freio")
+    ordem.desmontar("Pastilha velha")
+
+    print()
+    controle_os.fechar_os(1)
+    # Deve recusar, porque o carro ainda está desmontado.
+
+    print()
+    ordem.remontar()
+    ordem.remontar()
+    ordem.remontar()
+
+    print()
+    controle_os.fechar_os(1)
+    ordem.adicionar_servico("Lavagem", 30.00)
+    # Deve recusar, porque a OS já está fechada.
