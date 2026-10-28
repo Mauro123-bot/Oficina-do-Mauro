@@ -226,6 +226,56 @@ class Fila:
 
 
 # ============================================================
+# Módulo 8 - A classe Pilha (último a entrar, primeiro a sair)
+# ============================================================
+
+class Pilha:
+    # 'Pilha' organiza os nós como uma pilha de pratos (LIFO: Last In, First Out).
+    # O último que entra é o primeiro que sai.
+
+    def __init__(self):
+        self.topo = None
+        # 'self.topo' aponta para o elemento de cima da pilha.
+
+        self.tamanho = 0
+        # Conta quantos elementos estão na pilha.
+
+    def esta_vazia(self):
+        return self.topo is None
+
+    def empilhar(self, dado):
+        # Coloca um novo dado no TOPO da pilha.
+
+        novo_no = No(dado)
+        novo_no.proximo = self.topo
+        # O novo nó aponta para o antigo topo, que fica embaixo dele.
+
+        self.topo = novo_no
+        # O novo nó passa a ser o topo.
+
+        self.tamanho = self.tamanho + 1
+
+    def desempilhar(self):
+        # Retira e devolve o dado do TOPO da pilha.
+
+        if self.esta_vazia():
+            return None
+
+        no_que_sai = self.topo
+        self.topo = no_que_sai.proximo
+        # O nó de baixo passa a ser o topo.
+
+        self.tamanho = self.tamanho - 1
+        return no_que_sai.dado
+
+    def espiar(self):
+        # Mostra o topo sem retirá-lo.
+
+        if self.esta_vazia():
+            return None
+        return self.topo.dado
+
+# ============================================================
 # Módulo 4 - Controle de Atendimento (Entrada na oficina)
 # Regras da oficina usando a nossa Fila genérica do Módulo 3.
 # ============================================================
@@ -1032,8 +1082,23 @@ class Estoque:
                   f"Destino: {perda.produto.descarte}")
             atual = atual.proximo
 
+    # ---------- Teste do Módulo 8 ----------
+    print("\n===== MÓDULO 8: PILHA =====")
 
+    pilha = Pilha()
+    pilha.empilhar("Roda")
+    pilha.empilhar("Pinça de freio")
+    pilha.empilhar("Pastilha")
+    # Ordem de desmontagem: primeiro a roda, depois a pinça, por último a pastilha.
 
+    print(f"Testando Pilha - Tamanho: {pilha.tamanho}")
+    print(f"Testando Pilha - Topo: {pilha.espiar()}")
+
+    print("Remontagem, na ordem inversa:")
+    while not pilha.esta_vazia():
+        print(f"    Recolocar: {pilha.desempilhar()}")
+
+    print(f"Testando Pilha - Está vazia? {pilha.esta_vazia()}")
 
 
 # ============================================================
@@ -1250,3 +1315,21 @@ if __name__ == "__main__":
 
     print("\nPerdas registradas:")
     estoque.exibir_perdas()
+
+        # ---------- Teste do Módulo 8 ----------
+    print("\n===== MÓDULO 8: PILHA =====")
+
+    pilha = Pilha()
+    pilha.empilhar("Roda")
+    pilha.empilhar("Pinça de freio")
+    pilha.empilhar("Pastilha")
+    # Ordem de desmontagem: primeiro a roda, depois a pinça, por último a pastilha.
+
+    print(f"Testando Pilha - Tamanho: {pilha.tamanho}")
+    print(f"Testando Pilha - Topo: {pilha.espiar()}")
+
+    print("Remontagem, na ordem inversa:")
+    while not pilha.esta_vazia():
+        print(f"    Recolocar: {pilha.desempilhar()}")
+
+    print(f"Testando Pilha - Está vazia? {pilha.esta_vazia()}")
