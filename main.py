@@ -619,6 +619,173 @@ class CadastroClientes:
 # Módulo 6 - Árvore de Diagnóstico (árvore N-ária)
 # ============================================================
 
+class NoArvore:
+    # Cada nó da árvore guarda um componente do veículo.
+
+    def __init__(self, texto, codigo=None):
+        # Construtor executado ao criar um novo nó da árvore.
+
+        self.texto = texto
+        # 'self.texto' é o nome do componente, por exemplo "Motor" ou "Vela".
+
+        self.codigo = codigo
+        # Código da peça. Fica None quando o nó é um sistema, como "Motor".
+
+        self.estado = "OK"
+        # Todo componente começa OK. O mecânico marca "Com defeito" no diagnóstico.
+
+        self.primeiro_filho = None
+        # Aponta para o primeiro filho deste nó. Começa vazio.
+
+        self.proximo_irmao = None
+        # Aponta para o próximo irmão, que é outro filho do mesmo pai.
+        # Assim, os filhos de um nó formam uma lista encadeada, sem usar list do Python.
+
+class ArvoreDiagnostico:
+    # Árvore N-ária: cada nó pode ter quantos filhos precisar.
+
+    def __init__(self, texto_raiz):
+        # Cria a árvore já com a raiz, que é o veículo.
+
+        self.raiz = NoArvore(texto_raiz)
+        # 'self.raiz' é o nó do topo. Todos os outros descendem dele.
+
+    def buscar(self, texto, no=None):
+        # Procura um nó pelo texto, percorrendo a árvore em pré-ordem.
+
+        if no is None:
+            no = self.raiz
+            # Na primeira chamada, a busca começa pela raiz.
+
+        if no.texto == texto:
+            return no
+            # Achou. Devolve o nó encontrado.
+
+        filho = no.primeiro_filho
+        # Começa pelo primeiro filho do nó atual.
+
+        while filho is not None:
+            # Percorre todos os filhos, um irmão de cada vez.
+
+            encontrado = self.buscar(texto, filho)
+            # Chamada recursiva. Procura dentro do galho desse filho.
+
+            if encontrado is not None:
+                return encontrado
+                # Se achou no galho, devolve sem continuar procurando.
+
+            filho = filho.proximo_irmao
+            # Passa para o próximo irmão.
+
+        return None
+        # Percorreu tudo e não achou.
+
+    def adicionar(self, texto_pai, texto_filho, codigo=None):
+        # Pendura um novo nó embaixo do nó que tem o texto 'texto_pai'.
+        # 'codigo' só é informado quando o novo nó é uma peça.
+
+        pai = self.buscar(texto_pai)
+        # Primeiro localiza o pai na árvore.
+
+        if pai is None:
+            print(f"[AVISO] Não encontrei '{texto_pai}' na árvore.")
+            return
+            # Sem pai, não há onde pendurar o novo nó.
+
+        novo = NoArvore(texto_filho, codigo)
+        # Cria o nó novo.
+
+        if pai.primeiro_filho is None:
+            pai.primeiro_filho = novo
+            # Se o pai ainda não tem filhos, o novo vira o primeiro.
+
+        else:
+            atual = pai.primeiro_filho
+            # Senão, anda pelos irmãos até o último.
+
+            while atual.proximo_irmao is not None:
+                atual = atual.proximo_irmao
+
+            atual.proximo_irmao = novo
+            # O novo entra no fim da fila de irmãos, mantendo a ordem de cadastro.
+
+    def exibir_pre_ordem(self, no=None, nivel=0):
+        # Pré-ordem: primeiro mostra o nó, depois os filhos, da esquerda para a direita.
+
+        if no is None:
+            no = self.raiz
+
+        if no.codigo is None:
+            print("    " * nivel + f"- {no.texto} [{no.estado}]")
+        else:
+            print("    " * nivel + f"- {no.texto} (cód. {no.codigo}) [{no.estado}]")
+        # O recuo cresce com o nível, para mostrar a hierarquia na tela.
+        # Peças aparecem com o código. Sistemas aparecem só com o nome.
+
+        filho = no.primeiro_filho
+
+        while filho is not None:
+            self.exibir_pre_ordem(filho, nivel + 1)
+            # Chamada recursiva. Cada filho é exibido um nível mais para dentro.
+
+            filho = filho.proximo_irmao
+
+    def diagnosticos_possiveis(self, componente):
+        # Mostra as partes de um componente, ou seja, os filhos daquele nó.
+
+        no = self.buscar(componente)
+
+        if no is None:
+            print(f"[AVISO] Componente '{componente}' não cadastrado.")
+            return
+
+        filho = no.primeiro_filho
+
+        if filho is None:
+            print(f"'{componente}' é uma peça, não tem subcomponentes.")
+            return
+            # Nó sem filhos é uma folha, o fim do caminho.
+
+        print(f"Componentes de '{componente}':")
+
+        while filho is not None:
+            print(f"    {filho.texto}")
+            filho = filho.proximo_irmao
+
+    def marcar_defeito(self, texto):
+        # O mecânico marca um componente como defeituoso durante o diagnóstico.
+
+        no = self.buscar(texto)
+
+        if no is None:
+            print(f"[AVISO] Componente '{texto}' não encontrado.")
+            return
+
+        no.estado = "Com defeito"
+        print(f"[DIAGNÓSTICO] {texto} marcado como Com defeito.")
+
+    def pecas_com_defeito(self, no=None, resultado=None):
+        # Percorre a árvore em pré-ordem e junta numa ListaEncadeada
+        # as peças com defeito. Essa lista vai alimentar a OS depois.
+
+        if no is None:
+            no = self.raiz
+            resultado = ListaEncadeada()
+            # Só na primeira chamada: começa pela raiz e cria a lista vazia.
+
+        if no.estado == "Com defeito" and no.codigo is not None:
+            resultado.adicionar(no)
+            # Só entram peças, ou seja, nós que têm código.
+
+        filho = no.primeiro_filho
+        while filho is not None:
+            self.pecas_com_defeito(filho, resultado)
+            # Chamada recursiva. A mesma lista é passada para todos os galhos.
+
+            filho = filho.proximo_irmao
+
+        return resultado
+   
 # ============================================================
 # Módulo 7 - Controle de Estoque de Peças
 # Combinação: Lista de produtos, cada um contendo uma Fila de lotes
@@ -866,127 +1033,7 @@ class Estoque:
             atual = atual.proximo
 
 
-class NoArvore:
-    # Cada nó da árvore guarda um sintoma, uma causa ou um diagnóstico.
 
-    def __init__(self, texto):
-        # Construtor executado ao criar um novo nó da árvore.
-
-        self.texto = texto
-        # 'self.texto' é a descrição guardada no nó, por exemplo "Motor não liga".
-
-        self.primeiro_filho = None
-        # Aponta para o primeiro filho deste nó. Começa vazio.
-
-        self.proximo_irmao = None
-        # Aponta para o próximo irmão, que é outro filho do mesmo pai.
-        # Assim, os filhos de um nó formam uma lista encadeada, sem usar list do Python.
-
-class ArvoreDiagnostico:
-    # Árvore N-ária: cada nó pode ter quantos filhos precisar.
-
-    def __init__(self, texto_raiz):
-        # Cria a árvore já com a raiz, que é a pergunta inicial do diagnóstico.
-
-        self.raiz = NoArvore(texto_raiz)
-        # 'self.raiz' é o nó do topo. Todos os outros descendem dele.
-
-    def buscar(self, texto, no=None):
-        # Procura um nó pelo texto, percorrendo a árvore em pré-ordem.
-
-        if no is None:
-            no = self.raiz
-            # Na primeira chamada, a busca começa pela raiz.
-
-        if no.texto == texto:
-            return no
-            # Achou. Devolve o nó encontrado.
-
-        filho = no.primeiro_filho
-        # Começa pelo primeiro filho do nó atual.
-
-        while filho is not None:
-            # Percorre todos os filhos, um irmão de cada vez.
-
-            encontrado = self.buscar(texto, filho)
-            # Chamada recursiva. Procura dentro do galho desse filho.
-
-            if encontrado is not None:
-                return encontrado
-                # Se achou no galho, devolve sem continuar procurando.
-
-            filho = filho.proximo_irmao
-            # Passa para o próximo irmão.
-
-        return None
-        # Percorreu tudo e não achou.
-
-    def adicionar(self, texto_pai, texto_filho):
-        # Pendura um novo nó embaixo do nó que tem o texto 'texto_pai'.
-
-        pai = self.buscar(texto_pai)
-        # Primeiro localiza o pai na árvore.
-
-        if pai is None:
-            print(f"[AVISO] Não encontrei '{texto_pai}' na árvore.")
-            return
-            # Sem pai, não há onde pendurar o novo nó.
-
-        novo = NoArvore(texto_filho)
-        # Cria o nó novo.
-
-        if pai.primeiro_filho is None:
-            pai.primeiro_filho = novo
-            # Se o pai ainda não tem filhos, o novo vira o primeiro.
-
-        else:
-            atual = pai.primeiro_filho
-            # Senão, anda pelos irmãos até o último.
-
-            while atual.proximo_irmao is not None:
-                atual = atual.proximo_irmao
-
-            atual.proximo_irmao = novo
-            # O novo entra no fim da fila de irmãos, mantendo a ordem de cadastro.
-
-    def exibir_pre_ordem(self, no=None, nivel=0):
-        # Pré-ordem: primeiro mostra o nó, depois os filhos, da esquerda para a direita.
-
-        if no is None:
-            no = self.raiz
-
-        print("    " * nivel + "- " + no.texto)
-        # O recuo cresce com o nível, para mostrar a hierarquia na tela.
-
-        filho = no.primeiro_filho
-
-        while filho is not None:
-            self.exibir_pre_ordem(filho, nivel + 1)
-            # Chamada recursiva. Cada filho é exibido um nível mais para dentro.
-
-            filho = filho.proximo_irmao
-
-    def diagnosticos_possiveis(self, sintoma):
-        # Mostra as causas possíveis de um sintoma, ou seja, os filhos daquele nó.
-
-        no = self.buscar(sintoma)
-
-        if no is None:
-            print(f"[AVISO] Sintoma '{sintoma}' não cadastrado.")
-            return
-
-        filho = no.primeiro_filho
-
-        if filho is None:
-            print(f"'{sintoma}' já é um diagnóstico final.")
-            return
-            # Nó sem filhos é uma folha, o fim do caminho.
-
-        print(f"Causas possíveis para '{sintoma}':")
-
-        while filho is not None:
-            print(f"    {filho.texto}")
-            filho = filho.proximo_irmao
 
 
 # ============================================================
@@ -1113,41 +1160,54 @@ if __name__ == "__main__":
     print("\nClientes após as remoções:")
     cadastro.exibir()
 
-    # ---------- Teste do Módulo 6 ----------
-    print("\n===== MÓDULO 6: ÁRVORE DE DIAGNÓSTICO =====")
+        # ---------- Teste do Módulo 6 ----------
+    print("\n===== MÓDULO 6: ÁRVORE DE COMPONENTES =====")
 
-    arvore = ArvoreDiagnostico("Problema no veículo")
-    # A raiz é a queixa geral do cliente.
+    arvore = ArvoreDiagnostico("Veículo")
 
-    arvore.adicionar("Problema no veículo", "Motor não liga")
-    arvore.adicionar("Problema no veículo", "Barulho no freio")
-    arvore.adicionar("Problema no veículo", "Luz do painel acesa")
-    # Primeiro nível. Os sintomas que o cliente relata na entrada.
+    arvore.adicionar("Veículo", "Motor")
+    arvore.adicionar("Veículo", "Freios")
+    arvore.adicionar("Veículo", "Suspensão")
+    # Primeiro nível. Os sistemas do veículo.
 
-    arvore.adicionar("Motor não liga", "Bateria descarregada")
-    arvore.adicionar("Motor não liga", "Motor de arranque com defeito")
-    arvore.adicionar("Barulho no freio", "Pastilha gasta")
-    arvore.adicionar("Barulho no freio", "Disco empenado")
-    arvore.adicionar("Luz do painel acesa", "Nível de óleo baixo")
-    arvore.adicionar("Luz do painel acesa", "Superaquecimento")
-    # Segundo nível. As causas prováveis de cada sintoma.
+    arvore.adicionar("Motor", "Sistema de ignição")
+    arvore.adicionar("Sistema de ignição", "Vela", "VL01")
+    arvore.adicionar("Sistema de ignição", "Bobina", "BB01")
+    arvore.adicionar("Motor", "Correia dentada", "CD01")
+    arvore.adicionar("Freios", "Pastilha dianteira", "PF01")
+    arvore.adicionar("Freios", "Disco dianteiro", "DD01")
+    arvore.adicionar("Suspensão", "Amortecedor", "AM01")
+    arvore.adicionar("Suspensão", "Bandeja", "BD01")
+    # Subconjuntos e peças. Só as peças recebem código.
 
-    arvore.adicionar("Bateria descarregada", "Trocar bateria e enviar a velha para logística reversa")
-    arvore.adicionar("Pastilha gasta", "Trocar pastilhas e descartar as velhas corretamente")
-    arvore.adicionar("Nível de óleo baixo", "Completar óleo e verificar vazamento")
-    # Terceiro nível. A ação da oficina, já com o cuidado socioambiental do descarte.
+    arvore.adicionar("Câmbio", "Embreagem", "EM01")
+    # Deve dar aviso, porque "Câmbio" não existe na árvore.
 
-    arvore.adicionar("Câmbio duro", "Óleo do câmbio vencido")
-    # Deve dar aviso, porque "Câmbio duro" não existe na árvore.
-
-    print("\nÁrvore completa em pré-ordem:")
+    print("\nÁrvore antes do diagnóstico:")
     arvore.exibir_pre_ordem()
 
     print()
-    arvore.diagnosticos_possiveis("Barulho no freio")
-    arvore.diagnosticos_possiveis("Disco empenado")
+    arvore.marcar_defeito("Pastilha dianteira")
+    arvore.marcar_defeito("Vela")
+    arvore.marcar_defeito("Turbo")
+    # O último deve dar aviso, porque "Turbo" não existe.
+
+    print("\nÁrvore depois do diagnóstico:")
+    arvore.exibir_pre_ordem()
+
+    print("\nPeças a trocar:")
+    defeitos = arvore.pecas_com_defeito()
+    atual = defeitos.cabeca
+    while atual is not None:
+        print(f"    {atual.dado.texto} (cód. {atual.dado.codigo})")
+        atual = atual.proximo
+
+    print()
+    arvore.diagnosticos_possiveis("Freios")
+    arvore.diagnosticos_possiveis("Vela")
     
     # ---------- Teste do Módulo 7 ----------
+
     print("\n===== MÓDULO 7: ESTOQUE COM LOTES E DESCARTE =====")
 
     estoque = Estoque()
