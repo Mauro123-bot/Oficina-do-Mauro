@@ -1483,6 +1483,114 @@ class Caixa:
         else:
             print(f"    Total em peças: R$ {total:.2f}")
 
+
+# ============================================================
+# Módulo 12 - Simulação de um atendimento completo
+# ============================================================
+
+def criar_arvore_componentes():
+    # Monta a árvore pré-definida de componentes do veículo.
+
+    arvore = ArvoreDiagnostico("Veículo")
+
+    arvore.adicionar("Veículo", "Motor")
+    arvore.adicionar("Veículo", "Freios")
+    arvore.adicionar("Veículo", "Suspensão")
+
+    arvore.adicionar("Motor", "Sistema de ignição")
+    arvore.adicionar("Sistema de ignição", "Vela", "VL01")
+    arvore.adicionar("Sistema de ignição", "Bobina", "BB01")
+    arvore.adicionar("Motor", "Correia dentada", "CD01")
+    arvore.adicionar("Freios", "Pastilha dianteira", "PF01")
+    arvore.adicionar("Freios", "Disco dianteiro", "DD01")
+    arvore.adicionar("Suspensão", "Amortecedor", "AM01")
+    arvore.adicionar("Suspensão", "Bandeja", "BD01")
+
+    return arvore
+
+
+def simular_atendimento_completo():
+    print("\n===== MÓDULO 12: SIMULAÇÃO DE UM ATENDIMENTO COMPLETO =====")
+
+    # ---------- Preparação da oficina ----------
+    cadastro = CadastroClientes()
+    cadastro.cadastrar_cliente("Carla Mendes", "333.333.333-33", "(19) 99999-3333")
+    cadastro.cadastrar_veiculo("333.333.333-33", "QWE2R34", "Corolla", "Toyota", 2019)
+
+    estoque = Estoque()
+    estoque.cadastrar_produto("PF01", "Pastilha de freio (jogo)", 2, "coleta de resíduo metálico")
+    estoque.cadastrar_produto("DD01", "Disco de freio dianteiro", 1, "reciclagem de metal")
+    estoque.entrada_lote("PF01", 2, "Bosch", 80.00, 125.00, "01/06/2026")
+    estoque.entrada_lote("PF01", 5, "Cobreq", 85.00, 135.00, "10/10/2026")
+    estoque.entrada_lote("DD01", 4, "Fremax", 140.00, 220.00, "15/09/2026")
+    # A pastilha tem dois lotes com preços diferentes. A baixa deve usar o mais antigo.
+
+    atendimento = ControleAtendimento(total_boxes=1)
+    controle_os = ControleOS()
+    caixa = Caixa()
+
+    # ---------- Passo 1 ----------
+    print("\n--- Passo 1: chegada dos veículos ---")
+    atendimento.registrar_chegada("RST5U67", "João", "revisão")
+    # O box está livre e o João entra direto.
+
+    atendimento.registrar_chegada("LMN8O90", "Rita", "troca de óleo")
+    atendimento.registrar_chegada("QWE2R34", "Carla Mendes", "carro parou, barulho forte no freio",
+                                  guincho=True)
+    # O box está ocupado. A Rita vai para a fila normal e a Carla para a de guincho.
+
+    print(f"Próximo da vez: {atendimento.proximo_da_vez()}")
+
+    # ---------- Passo 2 ----------
+    print("\n--- Passo 2: box liberado, chamada do próximo e abertura da OS ---")
+    chamado = atendimento.liberar_box()
+    # O João terminou. A Carla, de guincho, é chamada antes da Rita.
+
+    dono, veiculo = cadastro.buscar_por_placa(chamado.placa)
+    print(f"Cadastro: veículo {veiculo} pertence a {dono.nome}")
+    # A placa do veículo chamado é buscada na lista de clientes e na lista de veículos.
+
+    ordem = controle_os.abrir_os(chamado.placa, chamado.nome_cliente, "Mauro")
+
+    # ---------- Passo 3 ----------
+    print("\n--- Passo 3: diagnóstico na árvore de componentes ---")
+    arvore = criar_arvore_componentes()
+    arvore.marcar_defeito("Pastilha dianteira")
+    arvore.marcar_defeito("Disco dianteiro")
+    arvore.exibir_pre_ordem()
+
+    # ---------- Passo 4 ----------
+    print("\n--- Passo 4: peças e serviços na OS ---")
+    ordem.adicionar_pecas_com_defeito(arvore)
+    ordem.adicionar_servico("Troca de pastilhas", 120.00)
+    ordem.adicionar_servico("Troca de disco", 150.00)
+    ordem.adicionar_servico("Alinhamento", 100.00)
+    ordem.remover_servico("Alinhamento")
+    # A cliente não autorizou o alinhamento.
+
+    ordem.desmontar("Roda dianteira")
+    ordem.desmontar("Pinça de freio")
+    ordem.remontar()
+    ordem.remontar()
+
+    print()
+    ordem.exibir()
+
+    # ---------- Passo 5 ----------
+    print("\n--- Passo 5: fechamento da OS e pagamento ---")
+    caixa.fechar_e_pagar(controle_os, ordem.numero, estoque, "Carla Mendes", "PIX")
+    # A baixa no estoque acontece aqui, pelo lote mais antigo de cada peça.
+
+    print("\nConsumo do veículo QWE2R34:")
+    caixa.consumo_por_placa("QWE2R34")
+
+    print("\nEstoque depois do atendimento:")
+    estoque.exibir()
+
+    print("\n--- O box fica livre para o próximo ---")
+    atendimento.liberar_box()
+    # A Rita é chamada.
+
 # ============================================================
 # Área de testes
 # Fica sempre no FINAL do arquivo, depois de todas as classes.
@@ -1793,3 +1901,6 @@ if __name__ == "__main__":
 
     print("\nEstoque depois dos atendimentos:")
     estoque.exibir()
+
+        # ---------- Teste do Módulo 12 ----------
+    simular_atendimento_completo()
