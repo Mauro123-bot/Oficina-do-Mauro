@@ -165,6 +165,20 @@ class Fila:
 
         return no_que_sai.dado
         # Devolve o dado de quem saiu da fila.
+
+    def espiar(self):
+        # Mostra quem é o próximo da fila, sem retirá-lo. 
+         # Passo 2. Tratar a fila vazia.
+        if self.esta_vazia():
+            # Se não há ninguém na fila, não há quem mostrar.
+
+            return None
+
+        # Passo 3. Devolver o dado do início.
+        return self.inicio.dado
+        # 'self.inicio' é o nó do primeiro da fila.
+        # '.dado' abre esse nó e pega o que está guardado dentro dele.
+
 # ============================================================
 # Área de testes
 # Fica sempre no FINAL do arquivo, depois de todas as classes.
@@ -178,6 +192,7 @@ if __name__ == "__main__":
     # Mensagem inicial, agora dentro do bloco de testes.
 
     # ---------- Teste do Módulo 1 ----------
+    print("\n===== MÓDULO 1: NÓ =====")
 
     no_teste = No("Carro 1")
     # Cria um nó real na memória guardando o texto "Carro 1".
@@ -189,6 +204,7 @@ if __name__ == "__main__":
     # Mostra que a caixinha 'proximo' realmente começou vazia (None).
 
     # ---------- Teste do Módulo 2 ----------
+    print("\n===== MÓDULO 2: LISTA ENCADEADA =====")
 
     lista = ListaEncadeada()
     # Cria uma lista encadeada nova, que começa vazia.
@@ -208,7 +224,10 @@ if __name__ == "__main__":
     lista.exibir()
     # Mostra os três carros na ordem em que foram adicionados.
 
- # ---------- Teste do Módulo 3 ----------
+    # ---------- Teste do Módulo 3 ----------
+    print("\n===== MÓDULO 3: FILA =====")
+
+    fila = Fila()
 
     fila = Fila()
     fila.enfileirar("Carro A")
@@ -218,3 +237,5 @@ if __name__ == "__main__":
     print(f"Atendido: {fila.desenfileirar()}")
     print(f"Atendido: {fila.desenfileirar()}")
     print(f"Testando Fila - Tamanho: {fila.tamanho}")
+    print(f"Testando Fila - Próximo da fila: {fila.espiar()}")
+    print(f"Testando Fila - Tamanho continua: {fila.tamanho}")
