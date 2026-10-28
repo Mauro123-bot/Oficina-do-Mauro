@@ -901,3 +901,5 @@ if __name__ == "__main__":
     print()
     arvore.diagnosticos_possiveis("Barulho no freio")
     arvore.diagnosticos_possiveis("Disco empenado")
+    
+
