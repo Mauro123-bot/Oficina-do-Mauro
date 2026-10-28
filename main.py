@@ -95,6 +95,49 @@ class ListaEncadeada:
             atual = atual.proximo
             # Avança para o próximo nó. Quando chegar ao fim, 'atual' vira None e o laço para.
 
+    def remover(self, dado):
+        # Remove da lista o primeiro nó que guarda o 'dado' informado.
+        # Devolve True se conseguiu remover, ou False se o dado não estava na lista.
+
+        if self.esta_vazia():
+            # Lista vazia, não há o que remover.
+
+            return False
+
+        if self.cabeca.dado == dado:
+            # Caso especial: o dado está logo no primeiro nó.
+
+            self.cabeca = self.cabeca.proximo
+            # A cabeça passa a ser o segundo nó. O primeiro fica desligado da lista.
+
+            return True
+
+        anterior = self.cabeca
+        # 'anterior' guarda o nó de trás, porque é ele que precisa ser religado.
+
+        atual = self.cabeca.proximo
+        # 'atual' é o nó que estamos examinando.
+
+        while atual is not None:
+            # Percorre a lista até o fim.
+
+            if atual.dado == dado:
+                # Achamos o nó a remover.
+
+                anterior.proximo = atual.proximo
+                # O nó de trás "pula" o atual e passa a apontar para o seguinte.
+                # Assim o nó atual sai da corrente.
+
+                return True
+
+            anterior = atual
+            atual = atual.proximo
+            # Os dois ponteiros andam um passo para a frente.
+
+        return False
+        # Chegamos ao fim sem encontrar o dado.
+
+
 
 # ============================================================
 # Módulo 3 - A classe Fila (primeiro a entrar, primeiro a sair)
@@ -356,6 +399,223 @@ class ControleAtendimento:
 
 
 # ============================================================
+# Módulo 5 - Controle de Clientes e Veículos
+# Combinação de estruturas: Lista de clientes, cada um com uma Lista de veículos.
+# ============================================================
+
+class Veiculo:
+    # Guarda os dados de um veículo.
+
+    def __init__(self, placa, modelo, marca, ano):
+        # Construtor do veículo.
+
+        self.placa = placa
+        # Placa, por exemplo "ABC1D23".
+
+        self.modelo = modelo
+        # Modelo, por exemplo "Onix".
+
+        self.marca = marca
+        # Marca, por exemplo "Chevrolet".
+
+        self.ano = ano
+        # Ano de fabricação, por exemplo 2020.
+
+    def __str__(self):
+        # Define como o veículo aparece num print().
+
+        return f"{self.placa} - {self.marca} {self.modelo} {self.ano}"
+
+
+class Cliente:
+    # Guarda os dados de um cliente e a lista dos seus veículos.
+
+    def __init__(self, nome, cpf, telefone):
+        # Construtor do cliente.
+
+        self.nome = nome
+        # Nome completo do cliente.
+
+        self.cpf = cpf
+        # CPF, usado para buscar o cliente.
+
+        self.telefone = telefone
+        # Telefone de contato.
+
+        self.veiculos = ListaEncadeada()
+        # Cada cliente tem a SUA PRÓPRIA lista de veículos.
+        # Como é uma lista encadeada, não há limite de quantos veículos ele pode ter.
+
+    def adicionar_veiculo(self, veiculo):
+        # Coloca um veículo na lista deste cliente.
+
+        self.veiculos.adicionar(veiculo)
+
+    def __str__(self):
+        # Define como o cliente aparece num print().
+
+        return f"{self.nome} | CPF {self.cpf} | Tel {self.telefone}"
+
+
+class CadastroClientes:
+    # Regras da oficina para cadastrar, buscar e remover clientes e veículos.
+
+    def __init__(self):
+        # Construtor do cadastro.
+
+        self.clientes = ListaEncadeada()
+        # Lista principal com todos os clientes da oficina.
+
+    def buscar_por_cpf(self, cpf):
+        # Procura um cliente pelo CPF. Devolve o cliente, ou None se não achar.
+
+        atual = self.clientes.cabeca
+        # Começa pelo primeiro cliente da lista.
+
+        while atual is not None:
+            # Percorre todos os clientes.
+
+            if atual.dado.cpf == cpf:
+                # 'atual.dado' é o objeto Cliente guardado no nó.
+
+                return atual.dado
+                # Achou. Devolve o cliente.
+
+            atual = atual.proximo
+            # Passa para o próximo cliente.
+
+        return None
+        # Percorreu tudo e não achou.
+
+    def buscar_por_placa(self, placa):
+        # Procura um veículo pela placa, percorrendo AS DUAS listas.
+        # Devolve dois valores, o cliente dono e o veículo, ou None, None se não achar.
+
+        atual_cliente = self.clientes.cabeca
+        # Começa pelo primeiro cliente.
+
+        while atual_cliente is not None:
+            # Laço de fora: anda pela lista de clientes.
+
+            cliente = atual_cliente.dado
+            atual_veiculo = cliente.veiculos.cabeca
+            # Para cada cliente, começa pelo primeiro veículo dele.
+
+            while atual_veiculo is not None:
+                # Laço de dentro: anda pela lista de veículos desse cliente.
+
+                if atual_veiculo.dado.placa == placa:
+                    return cliente, atual_veiculo.dado
+                    # Achou. Devolve o dono e o veículo.
+
+                atual_veiculo = atual_veiculo.proximo
+                # Próximo veículo do mesmo cliente.
+
+            atual_cliente = atual_cliente.proximo
+            # Terminou os veículos deste cliente. Passa para o próximo cliente.
+
+        return None, None
+        # Percorreu todos os clientes e veículos e não achou a placa.
+
+    def cadastrar_cliente(self, nome, cpf, telefone):
+        # Cadastra um novo cliente, desde que o CPF ainda não exista.
+
+        if self.buscar_por_cpf(cpf) is not None:
+            # Evita cadastrar o mesmo CPF duas vezes.
+
+            print(f"[AVISO] CPF {cpf} já cadastrado.")
+            return None
+
+        cliente = Cliente(nome, cpf, telefone)
+        self.clientes.adicionar(cliente)
+        # Cria o cliente e o coloca no final da lista.
+
+        print(f"[CADASTRO] Cliente cadastrado: {cliente}")
+        return cliente
+
+    def cadastrar_veiculo(self, cpf, placa, modelo, marca, ano):
+        # Cadastra um veículo para um cliente que já existe.
+
+        cliente = self.buscar_por_cpf(cpf)
+        # Primeiro, encontra o dono pelo CPF.
+
+        if cliente is None:
+            print(f"[AVISO] Cliente com CPF {cpf} não encontrado.")
+            return None
+
+        dono, veiculo_existente = self.buscar_por_placa(placa)
+        # Verifica se essa placa já está cadastrada em algum cliente.
+
+        if veiculo_existente is not None:
+            print(f"[AVISO] Placa {placa} já cadastrada para {dono.nome}.")
+            return None
+
+        veiculo = Veiculo(placa, modelo, marca, ano)
+        cliente.adicionar_veiculo(veiculo)
+        # Cria o veículo e o coloca na lista do cliente.
+
+        print(f"[CADASTRO] Veículo {veiculo} cadastrado para {cliente.nome}.")
+        return veiculo
+
+    def remover_cliente(self, cpf):
+        # Remove um cliente e, junto com ele, toda a sua lista de veículos.
+
+        cliente = self.buscar_por_cpf(cpf)
+
+        if cliente is None:
+            print(f"[AVISO] Cliente com CPF {cpf} não encontrado.")
+            return False
+
+        self.clientes.remover(cliente)
+        # Usa o método 'remover' da ListaEncadeada genérica.
+
+        print(f"[REMOÇÃO] Cliente {cliente.nome} removido.")
+        return True
+
+    def remover_veiculo(self, placa):
+        # Remove um veículo da lista do seu dono.
+
+        dono, veiculo = self.buscar_por_placa(placa)
+
+        if veiculo is None:
+            print(f"[AVISO] Placa {placa} não encontrada.")
+            return False
+
+        dono.veiculos.remover(veiculo)
+        # Remove o veículo da lista de veículos do dono.
+
+        print(f"[REMOÇÃO] Veículo {placa} removido de {dono.nome}.")
+        return True
+
+    def exibir(self):
+        # Mostra todos os clientes e, abaixo de cada um, os seus veículos.
+
+        if self.clientes.esta_vazia():
+            print("Nenhum cliente cadastrado.")
+            return
+
+        atual_cliente = self.clientes.cabeca
+
+        while atual_cliente is not None:
+            cliente = atual_cliente.dado
+            print(cliente)
+            # Mostra o cliente.
+
+            if cliente.veiculos.esta_vazia():
+                print("    (sem veículos)")
+
+            atual_veiculo = cliente.veiculos.cabeca
+
+            while atual_veiculo is not None:
+                print(f"    {atual_veiculo.dado}")
+                # Mostra cada veículo com recuo, para ficar abaixo do dono.
+
+                atual_veiculo = atual_veiculo.proximo
+
+            atual_cliente = atual_cliente.proximo
+
+
+# ============================================================
 # Área de testes
 # Fica sempre no FINAL do arquivo, depois de todas as classes.
 # ============================================================
@@ -444,3 +704,37 @@ if __name__ == "__main__":
 
     oficina.liberar_box()
     # Ninguém mais esperando. O box fica livre.
+
+    # ---------- Teste do Módulo 5 ----------
+    print("\n===== MÓDULO 5: CLIENTES E VEÍCULOS =====")
+
+    cadastro = CadastroClientes()
+    # Cria o cadastro da oficina, começando vazio.
+
+    cadastro.cadastrar_cliente("Ana Souza", "111.111.111-11", "(19) 99999-1111")
+    cadastro.cadastrar_cliente("Bruno Lima", "222.222.222-22", "(19) 99999-2222")
+    cadastro.cadastrar_cliente("Ana Repetida", "111.111.111-11", "(19) 90000-0000")
+    # O terceiro deve dar aviso, porque o CPF já existe.
+
+    cadastro.cadastrar_veiculo("111.111.111-11", "ABC1D23", "Onix", "Chevrolet", 2020)
+    cadastro.cadastrar_veiculo("111.111.111-11", "XYZ9K87", "HB20", "Hyundai", 2018)
+    cadastro.cadastrar_veiculo("222.222.222-22", "DEF4G56", "Gol", "Volkswagen", 2015)
+    # A Ana tem dois veículos. O Bruno tem um.
+
+    print("\nClientes cadastrados:")
+    cadastro.exibir()
+
+    print("\nBusca por CPF 222.222.222-22:")
+    print(cadastro.buscar_por_cpf("222.222.222-22"))
+
+    print("\nBusca pela placa XYZ9K87:")
+    dono, veiculo = cadastro.buscar_por_placa("XYZ9K87")
+    print(f"Veículo {veiculo} pertence a {dono.nome}")
+    # A busca percorre a lista de clientes e, dentro de cada um, a lista de veículos.
+
+    print()
+    cadastro.remover_veiculo("ABC1D23")
+    cadastro.remover_cliente("222.222.222-22")
+
+    print("\nClientes após as remoções:")
+    cadastro.exibir()
