@@ -1,3 +1,6 @@
+from datetime import datetime
+# Traz do Python a ferramenta que registra a data e a hora de chegada dos veículos.
+
 # ============================================================
 # Módulo 1 - A classe No (o "tijolo" da lista encadeada)
 # ============================================================
@@ -167,17 +170,190 @@ class Fila:
         # Devolve o dado de quem saiu da fila.
 
     def espiar(self):
-        # Mostra quem é o próximo da fila, sem retirá-lo. 
-         # Passo 2. Tratar a fila vazia.
+        # Mostra quem é o próximo da fila, sem retirá-lo.
+
         if self.esta_vazia():
             # Se não há ninguém na fila, não há quem mostrar.
 
             return None
 
-        # Passo 3. Devolver o dado do início.
         return self.inicio.dado
         # 'self.inicio' é o nó do primeiro da fila.
         # '.dado' abre esse nó e pega o que está guardado dentro dele.
+
+
+# ============================================================
+# Módulo 4 - Controle de Atendimento (Entrada na oficina)
+# Regras da oficina usando a nossa Fila genérica do Módulo 3.
+# ============================================================
+
+class Atendimento:
+    # Guarda os dados de um veículo que chegou à oficina e aguarda um box.
+
+    def __init__(self, placa, nome_cliente, queixa, guincho=False, idoso=False):
+        # Construtor. 'guincho=False' e 'idoso=False' são valores padrão,
+        # usados quando não informamos nada na hora de criar o atendimento.
+
+        self.placa = placa
+        # Placa do veículo, por exemplo "ABC1D23".
+
+        self.nome_cliente = nome_cliente
+        # Nome de quem trouxe o veículo.
+
+        self.queixa = queixa
+        # Problema relatado pelo cliente, por exemplo "barulho no freio".
+
+        self.guincho = guincho
+        # True se o veículo chegou de guincho. Pelo enunciado, tem prioridade máxima.
+
+        self.idoso = idoso
+        # True se o cliente tem 60 anos ou mais. Prioridade social da oficina,
+        # baseada no Estatuto da Pessoa Idosa (Lei 10.741/2003).
+
+        self.data_hora_chegada = datetime.now()
+        # Registra automaticamente a data e a hora exatas da chegada.
+
+    def __str__(self):
+        # Método especial do Python. Define como o atendimento aparece num print().
+
+        momento = self.data_hora_chegada.strftime("%d/%m/%Y %H:%M")
+        # Transforma a data e a hora num texto no formato dia/mês/ano hora:minuto.
+
+        return f"{self.placa} | {self.nome_cliente} | {self.queixa} | chegada {momento}"
+        # Devolve uma linha de texto com os dados principais do atendimento.
+
+
+class ControleAtendimento:
+    # Gerencia a espera dos veículos e a ocupação dos boxes (elevadores).
+    # Combinação de estruturas: três Filas trabalhando juntas na mesma operação.
+
+    def __init__(self, total_boxes):
+        # Construtor. 'total_boxes' é o número de elevadores da oficina.
+
+        self.total_boxes = total_boxes
+        # Guarda quantos boxes a oficina tem no total.
+
+        self.boxes_ocupados = 0
+        # Conta quantos boxes estão em uso. A oficina abre com todos livres.
+
+        self.fila_guincho = Fila()
+        # Fila 1: veículos trazidos por guincho. São atendidos antes de todos.
+
+        self.fila_idoso = Fila()
+        # Fila 2: clientes idosos. São atendidos depois do guincho e antes dos demais.
+
+        self.fila_normal = Fila()
+        # Fila 3: demais clientes, por ordem de chegada.
+
+    def tem_box_livre(self):
+        # Verifica se existe pelo menos um box desocupado.
+
+        return self.boxes_ocupados < self.total_boxes
+        # True se o número de boxes ocupados for menor que o total.
+
+    def registrar_chegada(self, placa, nome_cliente, queixa, guincho=False, idoso=False):
+        # Registra a chegada de um veículo e o coloca na fila certa.
+
+        atendimento = Atendimento(placa, nome_cliente, queixa, guincho, idoso)
+        # Cria o registro do atendimento com os dados recebidos.
+
+        if guincho:
+            # Se veio de guincho, vai para a fila de maior prioridade.
+
+            self.fila_guincho.enfileirar(atendimento)
+            print(f"[CHEGADA] {placa} entrou na fila de GUINCHO.")
+
+        elif idoso:
+            # Se não veio de guincho, mas o cliente é idoso, vai para a fila de idosos.
+
+            self.fila_idoso.enfileirar(atendimento)
+            print(f"[CHEGADA] {placa} entrou na fila PREFERENCIAL (idoso).")
+
+        else:
+            # Nos demais casos, vai para a fila normal.
+
+            self.fila_normal.enfileirar(atendimento)
+            print(f"[CHEGADA] {placa} entrou na fila NORMAL.")
+
+        if self.tem_box_livre():
+            # Se houver box livre no momento da chegada, o veículo já é chamado.
+
+            self.chamar_proximo()
+
+    def proximo_da_vez(self):
+        # Mostra quem será o próximo atendido, sem tirá-lo da fila.
+        # Aqui usamos o método 'espiar' criado no Módulo 3.
+
+        if not self.fila_guincho.esta_vazia():
+            return self.fila_guincho.espiar()
+            # Se houver alguém de guincho, ele é o próximo.
+
+        if not self.fila_idoso.esta_vazia():
+            return self.fila_idoso.espiar()
+            # Senão, se houver idoso esperando, ele é o próximo.
+
+        return self.fila_normal.espiar()
+        # Senão, é o primeiro da fila normal. Se ela estiver vazia, devolve None.
+
+    def chamar_proximo(self):
+        # Retira o próximo veículo da fila certa e o coloca num box livre.
+
+        if not self.tem_box_livre():
+            # Se todos os boxes estiverem ocupados, ninguém pode ser chamado.
+
+            print("[AVISO] Todos os boxes estão ocupados.")
+            return None
+
+        if not self.fila_guincho.esta_vazia():
+            atendimento = self.fila_guincho.desenfileirar()
+            # Prioridade 1: fila de guincho.
+
+        elif not self.fila_idoso.esta_vazia():
+            atendimento = self.fila_idoso.desenfileirar()
+            # Prioridade 2: fila de idosos.
+
+        elif not self.fila_normal.esta_vazia():
+            atendimento = self.fila_normal.desenfileirar()
+            # Prioridade 3: fila normal.
+
+        else:
+            # Se as três filas estiverem vazias, não há quem chamar.
+
+            print("[AVISO] Nenhum veículo aguardando.")
+            return None
+
+        self.boxes_ocupados = self.boxes_ocupados + 1
+        # Um box a mais passa a estar ocupado.
+
+        print(f"[BOX] Chamado: {atendimento}")
+        print(f"      Boxes ocupados: {self.boxes_ocupados}/{self.total_boxes}")
+        # Mostra quem foi chamado e como ficou a ocupação da oficina.
+
+        return atendimento
+        # Devolve o atendimento chamado. Na Etapa da OS, ele será usado para abrir a ordem.
+
+    def liberar_box(self):
+        # Libera um box quando o serviço termina e chama o próximo automaticamente.
+
+        if self.boxes_ocupados == 0:
+            # Não há box ocupado para liberar.
+
+            print("[AVISO] Nenhum box está ocupado.")
+            return None
+
+        self.boxes_ocupados = self.boxes_ocupados - 1
+        # Um box volta a ficar livre.
+
+        print(f"[BOX] Um box foi liberado. Boxes ocupados: {self.boxes_ocupados}/{self.total_boxes}")
+
+        return self.chamar_proximo()
+        # Enunciado, item c. Quando um box fica livre, o sistema indica o próximo.
+
+    def total_em_espera(self):
+        # Soma quantos veículos aguardam nas três filas.
+
+        return self.fila_guincho.tamanho + self.fila_idoso.tamanho + self.fila_normal.tamanho
+
 
 # ============================================================
 # Área de testes
@@ -228,8 +404,6 @@ if __name__ == "__main__":
     print("\n===== MÓDULO 3: FILA =====")
 
     fila = Fila()
-
-    fila = Fila()
     fila.enfileirar("Carro A")
     fila.enfileirar("Carro B")
     fila.enfileirar("Carro C")
@@ -239,3 +413,34 @@ if __name__ == "__main__":
     print(f"Testando Fila - Tamanho: {fila.tamanho}")
     print(f"Testando Fila - Próximo da fila: {fila.espiar()}")
     print(f"Testando Fila - Tamanho continua: {fila.tamanho}")
+
+    # ---------- Teste do Módulo 4 ----------
+    print("\n===== MÓDULO 4: CONTROLE DE ATENDIMENTO =====")
+
+    oficina = ControleAtendimento(total_boxes=2)
+    # Cria a oficina com 2 boxes.
+
+    oficina.registrar_chegada("ABC1D23", "Ana", "troca de óleo")
+    oficina.registrar_chegada("DEF4G56", "Bruno", "barulho no freio")
+    # Os dois primeiros encontram box livre e entram direto.
+
+    oficina.registrar_chegada("GHI7J89", "Carlos", "revisão")
+    oficina.registrar_chegada("JKL0M12", "Dona Maria", "luz do painel acesa", idoso=True)
+    oficina.registrar_chegada("MNO3P45", "Pedro", "motor não liga", guincho=True)
+    # Os boxes estão cheios. Esses três ficam esperando, cada um na sua fila.
+
+    print(f"Veículos em espera: {oficina.total_em_espera()}")
+    print(f"Próximo da vez: {oficina.proximo_da_vez()}")
+    # Deve mostrar o carro do guincho, mesmo tendo chegado por último.
+
+    oficina.liberar_box()
+    # Entra o guincho.
+
+    oficina.liberar_box()
+    # Entra a Dona Maria, idosa.
+
+    oficina.liberar_box()
+    # Entra o Carlos, da fila normal.
+
+    oficina.liberar_box()
+    # Ninguém mais esperando. O box fica livre.
