@@ -1315,6 +1315,175 @@ class ControleOS:
         return ordem
 
 # ============================================================
+# Módulo 10 - Pagamento
+# ============================================================
+
+class Pagamento:
+    # Guarda os dados de um pagamento feito no fechamento da OS.
+
+    def __init__(self, pagador, numero_os, forma, parcelas, valor_pecas, valor_mao_obra):
+        self.pagador = pagador
+        self.numero_os = numero_os
+        self.forma = forma
+        self.parcelas = parcelas
+        # 'parcelas' só tem valor quando a forma é Cartão. Nas outras fica None.
+
+        self.valor_pecas = valor_pecas
+        self.valor_mao_obra = valor_mao_obra
+        self.total = valor_pecas + valor_mao_obra
+        self.data_hora = datetime.now()
+
+    def __str__(self):
+        if self.forma == "Cartão":
+            if self.parcelas == 1:
+                texto_forma = "Cartão à vista"
+            else:
+                texto_forma = f"Cartão em {self.parcelas}x de R$ {self.total / self.parcelas:.2f}"
+        else:
+            texto_forma = self.forma
+
+        return (f"OS {self.numero_os} | pago por {self.pagador} | {texto_forma} | "
+                f"peças R$ {self.valor_pecas:.2f} | mão de obra R$ {self.valor_mao_obra:.2f} | "
+                f"total R$ {self.total:.2f} | {self.data_hora.strftime('%d/%m/%Y %H:%M')}")
+
+
+# ============================================================
+# Módulo 11 - Controle do que foi consumido
+# Combinação: a OS, o Estoque e o Caixa trabalham juntos no fechamento
+# ============================================================
+
+class RegistroConsumo:
+    # Anota qual cliente e qual veículo consumiu cada peça, e por quanto.
+
+    def __init__(self, numero_os, cliente, placa, codigo, descricao, quantidade, valor):
+        self.numero_os = numero_os
+        self.cliente = cliente
+        self.placa = placa
+        self.codigo = codigo
+        self.descricao = descricao
+        self.quantidade = quantidade
+        self.valor = valor
+
+    def __str__(self):
+        return (f"OS {self.numero_os} | {self.cliente} | {self.placa} | "
+                f"{self.codigo} - {self.descricao} | {self.quantidade} un. | R$ {self.valor:.2f}")
+
+
+class Caixa:
+    # Faz o fechamento completo da OS.
+
+    def __init__(self):
+        self.pagamentos = ListaEncadeada()
+        self.consumos = ListaEncadeada()
+
+    def forma_valida(self, forma, parcelas):
+        if forma == "PIX" or forma == "Dinheiro":
+            return True
+
+        if forma == "Cartão":
+            if parcelas < 1 or parcelas > 12:
+                print(f"[AVISO] Número de parcelas inválido: {parcelas}. Use de 1 a 12.")
+                return False
+            return True
+
+        print(f"[AVISO] Forma de pagamento '{forma}' não aceita. Use PIX, Cartão ou Dinheiro.")
+        return False
+
+    def estoque_suficiente(self, ordem, estoque):
+        # Confere TODAS as peças antes de baixar qualquer uma.
+        # Assim o estoque não fica pela metade se faltar alguma peça.
+
+        atual = ordem.pecas.cabeca
+        while atual is not None:
+            peca = atual.dado
+            produto = estoque.buscar_produto(peca.codigo)
+
+            if produto is None:
+                print(f"[AVISO] Peça {peca.codigo} não existe no estoque.")
+                return False
+
+            if produto.total() < peca.quantidade:
+                print(f"[AVISO] Estoque insuficiente de {peca.codigo}: "
+                      f"pedido {peca.quantidade}, disponível {produto.total()}.")
+                return False
+
+            atual = atual.proximo
+        return True
+
+    def fechar_e_pagar(self, controle_os, numero, estoque, pagador, forma, parcelas=1):
+        ordem = controle_os.buscar(numero)
+        if ordem is None:
+            print(f"[AVISO] OS {numero} não encontrada entre as abertas.")
+            return None
+
+        # 1. Conferências. Se alguma falhar, nada é alterado.
+        if not self.forma_valida(forma, parcelas):
+            return None
+
+        if not ordem.desmontagem.esta_vazia():
+            print(f"[AVISO] OS {numero} com remontagem pendente. Fechamento cancelado.")
+            return None
+
+        if not self.estoque_suficiente(ordem, estoque):
+            print(f"[AVISO] Fechamento da OS {numero} cancelado. Nada foi baixado.")
+            return None
+
+        # 2. Baixa no estoque pelo lote mais antigo e registro do consumo.
+        valor_pecas = 0
+        atual = ordem.pecas.cabeca
+        while atual is not None:
+            peca = atual.dado
+            valor = estoque.retirar(peca.codigo, peca.quantidade)
+            valor_pecas = valor_pecas + valor
+
+            self.consumos.adicionar(RegistroConsumo(ordem.numero, ordem.cliente, ordem.placa,
+                                                    peca.codigo, peca.descricao,
+                                                    peca.quantidade, valor))
+            atual = atual.proximo
+
+        # 3. Fechamento da OS.
+        controle_os.fechar_os(numero)
+
+        # 4. Registro do pagamento.
+        if forma != "Cartão":
+            parcelas = None
+
+        pagamento = Pagamento(pagador, numero, forma, parcelas,
+                              valor_pecas, ordem.total_servicos())
+        self.pagamentos.adicionar(pagamento)
+        print(f"[PAGAMENTO] {pagamento}")
+        return pagamento
+
+    def exibir_pagamentos(self):
+        if self.pagamentos.esta_vazia():
+            print("Nenhum pagamento registrado.")
+            return
+
+        atual = self.pagamentos.cabeca
+        while atual is not None:
+            print(f"    {atual.dado}")
+            atual = atual.proximo
+
+    def consumo_por_placa(self, placa):
+        # Percorre os registros e mostra só os do veículo pedido.
+
+        total = 0
+        encontrou = False
+        atual = self.consumos.cabeca
+        while atual is not None:
+            registro = atual.dado
+            if registro.placa == placa:
+                print(f"    {registro}")
+                total = total + registro.valor
+                encontrou = True
+            atual = atual.proximo
+
+        if not encontrou:
+            print(f"    Nenhum consumo registrado para {placa}.")
+        else:
+            print(f"    Total em peças: R$ {total:.2f}")
+
+# ============================================================
 # Área de testes
 # Fica sempre no FINAL do arquivo, depois de todas as classes.
 # ============================================================
@@ -1590,3 +1759,37 @@ if __name__ == "__main__":
     controle_os.fechar_os(1)
     ordem.adicionar_servico("Lavagem", 30.00)
     # Deve recusar, porque a OS já está fechada.
+
+        # ---------- Teste dos Módulos 10 e 11 ----------
+    print("\n===== MÓDULOS 10 E 11: PAGAMENTO E CONTROLE DO CONSUMO =====")
+
+    caixa = Caixa()
+
+    ordem2 = controle_os.abrir_os("XYZ9K87", "Ana Souza", "Mauro")
+    ordem2.adicionar_peca("PF01", "Pastilha de freio (jogo)", 1)
+    ordem2.adicionar_peca("OL01", "Óleo 5W30 (litro)", 4)
+    ordem2.adicionar_servico("Troca de pastilhas", 120.00)
+    ordem2.adicionar_servico("Troca de óleo", 60.00)
+
+    print()
+    caixa.fechar_e_pagar(controle_os, 2, estoque, "Ana Souza", "Cheque")
+    # Deve recusar a forma de pagamento.
+
+    caixa.fechar_e_pagar(controle_os, 2, estoque, "Ana Souza", "Cartão", 3)
+    # Baixa a pastilha e o óleo, fecha a OS e registra o pagamento em 3x.
+
+    print()
+    ordem3 = controle_os.abrir_os("XYZ9K87", "Ana Souza", "Mauro")
+    ordem3.adicionar_peca("PF01", "Pastilha de freio (jogo)", 1)
+    ordem3.adicionar_servico("Troca de pastilhas", 120.00)
+    caixa.fechar_e_pagar(controle_os, 3, estoque, "Ana Souza", "PIX")
+    # Deve recusar, porque a pastilha acabou na OS anterior. Nada é baixado.
+
+    print("\nPagamentos registrados:")
+    caixa.exibir_pagamentos()
+
+    print("\nConsumo do veículo XYZ9K87:")
+    caixa.consumo_por_placa("XYZ9K87")
+
+    print("\nEstoque depois dos atendimentos:")
+    estoque.exibir()
