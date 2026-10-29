@@ -142,10 +142,10 @@ Os códigos das peças são os mesmos do estoque. Assim, uma peça marcada com d
 
 ## 8. Desenvolvimento incremental
 
-**Sábado, 24/10.** Criação do repositório no GitHub e deste README. Módulos 1 a 3, com as classes `No`, `ListaEncadeada` e `Fila`.
+**Sábado, 24/10.** Criação do repositório no GitHub e do README inicial com a concepção do projeto.
 
-**Segunda-feira, 26/10.** Módulo 4, controle de atendimento com filas de guincho, idosos e normal. Módulo 5, cadastro de clientes e veículos.
+**Segunda-feira, 26/10.** Estudo do enunciado e planejamento das classes, sem commit.
 
-**Terça-feira, 27/10.** Módulo 6, primeira versão da árvore N-ária de diagnóstico.
+**Terça-feira, 27/10.** Módulos 1 a 3, com as classes `No`, `ListaEncadeada` e `Fila`, incluindo o método `espiar`.
 
-**Quarta-feira, 28/10.** Módulo 7, estoque com lista de produtos e fila de lotes, descarte de vencidos e ajuste de inventário. Reformulação do Módulo 6 como árvore de componentes, com código e estado de cada peça. Módulo 8, pilha. Módulo 9, ordem de serviço. Módulos 10 e 11, pagamento e controle do consumo. Módulo 12, simulação completa. Versão final deste README.
+**Quarta-feira, 28/10.** Módulo 4, controle de atendimento com filas de guincho, idosos e normal. Módulo 5, cadastro de clientes e veículos. Módulo 6, primeira versão da árvore N-ária de diagnóstico. Módulo 7, estoque com lista de produtos e fila de lotes, descarte de vencidos e ajuste de inventário. Reformulação do Módulo 6 como árvore de componentes, com código e estado de cada peça. Módulo 8, pilha. Módulo 9, ordem de serviço. Módulos 10 e 11, pagamento e controle do consumo. Módulo 12, simulação completa. Versão final deste README.
