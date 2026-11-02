@@ -1082,23 +1082,6 @@ class Estoque:
                   f"Destino: {perda.produto.descarte}")
             atual = atual.proximo
 
-    # ---------- Teste do Módulo 8 ----------
-    print("\n===== MÓDULO 8: PILHA =====")
-
-    pilha = Pilha()
-    pilha.empilhar("Roda")
-    pilha.empilhar("Pinça de freio")
-    pilha.empilhar("Pastilha")
-    # Ordem de desmontagem: primeiro a roda, depois a pinça, por último a pastilha.
-
-    print(f"Testando Pilha - Tamanho: {pilha.tamanho}")
-    print(f"Testando Pilha - Topo: {pilha.espiar()}")
-
-    print("Remontagem, na ordem inversa:")
-    while not pilha.esta_vazia():
-        print(f"    Recolocar: {pilha.desempilhar()}")
-
-    print(f"Testando Pilha - Está vazia? {pilha.esta_vazia()}")
 
 # ============================================================
 # Módulo 9 - Ordem de Serviço
