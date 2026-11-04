@@ -1,3 +1,6 @@
+# Vídeo de apresentação
+https://youtu.be/nsY3lc761pE
+
 # Projeto Oficina Mecânica Sustentável
 
 Disciplina Estrutura de Dados, Fatec Rio Claro.
